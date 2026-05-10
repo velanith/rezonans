@@ -3,6 +3,12 @@ __pycache__/
 *.py[codz]
 *$py.class
 
+# code
+.DS_Store
+
+# eda
+/eda
+
 # C extensions
 *.so
 

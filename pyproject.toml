@@ -1,0 +1,12 @@
+[project]
+name = "rezonans"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "matplotlib>=3.10.9",
+    "nibabel>=5.4.2",
+    "plotly>=6.7.0",
+    "scipy>=1.17.1",
+]
