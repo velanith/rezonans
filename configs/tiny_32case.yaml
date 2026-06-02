@@ -1,0 +1,102 @@
+run:
+  name: tiny_32case
+  seed: 42
+
+data:
+  root_dir: /Users/yemre/Desktop/rezonans/dataset
+  case_ids:
+    - BraTS2021_00456
+    - BraTS2021_00451
+    - BraTS2021_00459
+    - BraTS2021_00457
+    - BraTS2021_00578
+    - BraTS2021_00582
+    - BraTS2021_00576
+    - BraTS2021_00571
+    - BraTS2021_00115
+    - BraTS2021_00584
+    - BraTS2021_00570
+    - BraTS2021_00577
+    - BraTS2021_00583
+    - BraTS2021_00579
+    - BraTS2021_01019
+    - BraTS2021_01026
+    - BraTS2021_00590
+    - BraTS2021_00597
+    - BraTS2021_01021
+    - BraTS2021_01017
+    - BraTS2021_00599
+    - BraTS2021_00598
+    - BraTS2021_01011
+    - BraTS2021_01016
+    - BraTS2021_00596
+    - BraTS2021_01020
+    - BraTS2021_01018
+    - BraTS2021_00101
+    - BraTS2021_00591
+    - BraTS2021_00444
+    - BraTS2021_00443
+    - BraTS2021_01163
+    - BraTS2021_00442
+    - BraTS2021_00445
+    - BraTS2021_00452
+    - BraTS2021_00455
+    - BraTS2021_00454
+    - BraTS2021_00453
+    - BraTS2021_00127
+    - BraTS2021_00588
+    - BraTS2021_00572
+    - BraTS2021_00586
+    - BraTS2021_00581
+    - BraTS2021_00575
+    - BraTS2021_00574
+    - BraTS2021_00580
+    - BraTS2021_00587
+    - BraTS2021_00589
+    - BraTS2021_00594
+    - BraTS2021_01022
+    - BraTS2021_01025
+    - BraTS2021_00593
+    - BraTS2021_00567
+    - BraTS2021_01013
+    - BraTS2021_00569
+    - BraTS2021_01014
+    - BraTS2021_00568
+    - BraTS2021_01015
+    - BraTS2021_01012
+    - BraTS2021_01024
+    - BraTS2021_01023
+    - BraTS2021_00449
+    - BraTS2021_00446
+    - BraTS2021_00448
+  crop_size: 128
+  jitter: 32
+  normalize: true
+
+model:
+  name: tiny_unet
+  in_channels: 4
+  out_channels: 4
+  base_channels: 8
+  use_coord_head: true
+
+training:
+  mode: multitask
+  device: auto
+  batch_size: 4
+  num_workers: 0
+  max_epochs: 20
+  lr: 0.0003
+  weight_decay: 0.00001
+  precision: fp32
+  log_interval: 1
+
+loss:
+  dice: 1.0
+  ce: 1.0
+  focal: 0.0
+  coord: 0.1
+  et_coord: 0.5
+  coord_warmup_epoch: 5
+  coord_rampup_epoch: 15
+  lambda_coord_max: 0.1

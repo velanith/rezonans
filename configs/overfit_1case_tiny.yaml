@@ -1,0 +1,41 @@
+# configs/overfit_1case_tiny_seg.yaml
+
+run:
+  name: overfit_1case_tiny_seg
+  seed: 42
+
+data:
+  root_dir: /Users/yemre/Desktop/rezonans/dataset
+  case_ids:
+    - BraTS2021_01163
+  crop_size: 128
+  jitter: 0
+  normalize: true
+
+model:
+  name: tiny_unet
+  in_channels: 4
+  out_channels: 4
+  base_channels: 8
+  use_coord_head: false
+
+training:
+  mode: segmentation_only
+  device: auto
+  batch_size: 1
+  num_workers: 0
+  max_epochs: 80
+  lr: 0.0003
+  weight_decay: 0.00001
+  precision: fp32
+  log_interval: 1
+
+loss:
+  dice: 1.0
+  ce: 1.0
+  focal: 0.0
+  coord: 0.0
+  et_coord: 0.5
+  coord_warmup_epoch: 999
+  coord_rampup_epoch: 1000
+  lambda_coord_max: 0.0

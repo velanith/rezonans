@@ -1,0 +1,48 @@
+# configs/tiny_8case.yaml
+
+run:
+  name: tiny_8case
+  seed: 42
+
+data:
+  root_dir: /Users/yemre/Desktop/rezonans/dataset
+  case_ids:
+    - BraTS2021_00456
+    - BraTS2021_00451
+    - BraTS2021_00459
+    - BraTS2021_00457
+    - BraTS2021_00578
+    - BraTS2021_00582
+    - BraTS2021_00576
+    - BraTS2021_00571
+  crop_size: 128
+  jitter: 32
+  normalize: true
+
+model:
+  name: tiny_unet
+  in_channels: 4
+  out_channels: 4
+  base_channels: 8
+  use_coord_head: true
+
+training:
+  mode: multitask
+  device: auto
+  batch_size: 1
+  num_workers: 0
+  max_epochs: 50
+  lr: 0.0003
+  weight_decay: 0.00001
+  precision: fp32
+  log_interval: 1
+
+loss:
+  dice: 1.0
+  ce: 1.0
+  focal: 0.0
+  coord: 0.1
+  et_coord: 0.5
+  coord_warmup_epoch: 5
+  coord_rampup_epoch: 15
+  lambda_coord_max: 0.1
