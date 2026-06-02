@@ -6,7 +6,7 @@ run:
 
 data:
   train_dir: /workspace/rezonans/dataset/train_set
-  val_dir: /workspace/rezonans/dataset/val_set
+  val_split: 0.2
   crop_size: 128
   jitter: 32
   normalize: true

@@ -91,16 +91,19 @@ def build_datasets(
     normalize = bool(data_cfg.get("normalize", True))
     jitter = int(data_cfg.get("jitter", 0))
 
-    # Pre-split layout: train_dir / val_dir
+    # Pre-split layout: train_dir (+ optional val_dir or val_split)
     if "train_dir" in data_cfg:
         train_root = Path(str(data_cfg["train_dir"]))
-        train_ids = auto_discover_cases(train_root)
-        print(f"Train: {len(train_ids)} cases from {train_root}")
+        all_ids = auto_discover_cases(train_root)
 
         val_ds: BraTSDataset | None = None
+
         if "val_dir" in data_cfg:
+            # Separate val directory with labels
             val_root = Path(str(data_cfg["val_dir"]))
             val_ids = auto_discover_cases(val_root)
+            train_ids = all_ids
+            print(f"Train: {len(train_ids)} cases from {train_root}")
             print(f"Val:   {len(val_ids)} cases from {val_root}")
             val_ds = BraTSDataset(
                 root_dir=val_root,
@@ -110,6 +113,24 @@ def build_datasets(
                 normalize=normalize,
                 augment=False,
             )
+        else:
+            # Split train_dir by val_split
+            val_split = float(data_cfg.get("val_split", 0.0))
+            if val_split > 0.0:
+                seed = int(cfg["run"].get("seed", 42))
+                train_ids, val_ids = split_case_ids(all_ids, val_split, seed)
+                print(f"Split: {len(train_ids)} train / {len(val_ids)} val from {train_root}")
+                val_ds = BraTSDataset(
+                    root_dir=train_root,
+                    case_ids=val_ids,
+                    crop_size=crop_size,
+                    jitter=0,
+                    normalize=normalize,
+                    augment=False,
+                )
+            else:
+                train_ids = all_ids
+                print(f"Train: {len(train_ids)} cases from {train_root} (no val)")
 
         train_ds = BraTSDataset(
             root_dir=train_root,
