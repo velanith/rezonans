@@ -1,0 +1,50 @@
+# configs/unetr_seg.yaml
+# Phase 1: UNETR segmentation only — coord head disabled
+
+run:
+  name: unetr_seg
+  seed: 42
+
+data:
+  train_dir: /workspace/rezonans/dataset/train_set
+  val_split: 0.2
+  crop_size: 128
+  jitter: 32
+  normalize: true
+  preload: true
+  cache_dir: /workspace/rezonans/cache
+
+model:
+  name: ttfields_unetr
+  in_channels: 4
+  out_channels: 4
+  img_size: 128
+  feature_size: 16
+  hidden_size: 768
+  mlp_dim: 3072
+  num_heads: 12
+  dropout_rate: 0.0
+
+training:
+  mode: segmentation_only
+  device: cuda
+  batch_size: 2
+  num_workers: 4
+  max_epochs: 300
+  lr: 0.0001
+  lr_min: 0.000001
+  weight_decay: 0.00001
+  precision: fp16
+  log_interval: 1
+  scheduler: cosine
+  checkpoint_dir: /workspace/rezonans/checkpoints/unetr_seg
+
+loss:
+  dice: 1.0
+  ce: 1.0
+  focal: 0.0
+  coord: 0.0
+  et_coord: 0.0
+  coord_warmup_epoch: 9999
+  coord_rampup_epoch: 9999
+  lambda_coord_max: 0.0
