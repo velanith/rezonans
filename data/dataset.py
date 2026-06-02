@@ -7,7 +7,9 @@ import nibabel as nib
 import numpy as np
 import torch
 
-from data.transforms import foreground_crop
+from torch.utils.data import Dataset
+
+from data.transforms import foreground_crop, random_flip_3d
 from data.utils import (
     apply_affine_zyx,
     compute_centroid_with_fallback,
@@ -237,7 +239,6 @@ def debug_single_case(case_dir: str | Path, crop_size: int = 128) -> None:
     print(f"ET full voxel zyx : {et_full_voxel.tolist()}")
     print(f"ET world xyz mm   : {et_world.tolist()}")
 
-from torch.utils.data import Dataset
 
 class BraTSDataset(Dataset[dict]):
     def __init__(
@@ -247,12 +248,14 @@ class BraTSDataset(Dataset[dict]):
         crop_size: int = 128,
         jitter: int = 32,
         normalize: bool = True,
+        augment: bool = False,
     ) -> None:
         self.root_dir = Path(root_dir)
         self.case_ids = case_ids
         self.crop_size = crop_size
         self.jitter = jitter
         self.normalize = normalize
+        self.augment = augment
 
         if not self.root_dir.exists():
             raise FileNotFoundError(f"Dataset root not found: {self.root_dir}")
@@ -292,6 +295,9 @@ class BraTSDataset(Dataset[dict]):
         image_crop = crop["image"]
         mask_crop = crop["mask"]
         crop_origin_zyx = crop["crop_origin_zyx"]
+
+        if self.augment:
+            image_crop, mask_crop = random_flip_3d(image_crop, mask_crop)
 
         centroids = compute_centroid_with_fallback(
             mask_crop,

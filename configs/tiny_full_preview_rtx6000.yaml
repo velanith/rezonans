@@ -1,0 +1,44 @@
+# configs/tiny_full_preview_rtx6000.yaml
+
+run:
+  name: tiny_full_preview_rtx6000
+  seed: 42
+
+data:
+  root_dir: /workspace/rezonans/dataset
+  case_ids: auto
+  val_split: 0.2
+  crop_size: 128
+  jitter: 32
+  normalize: true
+
+model:
+  name: tiny_unet
+  in_channels: 4
+  out_channels: 4
+  base_channels: 12
+  use_coord_head: true
+
+training:
+  mode: multitask
+  device: cuda
+  batch_size: 8
+  num_workers: 4
+  max_epochs: 150
+  lr: 0.0005
+  lr_min: 0.000001
+  weight_decay: 0.00001
+  precision: fp16
+  log_interval: 1
+  scheduler: cosine
+  checkpoint_dir: /workspace/rezonans/checkpoints/tiny_full_preview_rtx6000
+
+loss:
+  dice: 1.0
+  ce: 1.0
+  focal: 0.0
+  coord: 0.1
+  et_coord: 0.5
+  coord_warmup_epoch: 5
+  coord_rampup_epoch: 15
+  lambda_coord_max: 0.1

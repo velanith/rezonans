@@ -245,3 +245,24 @@ def foreground_crop(
         "mask": mask_crop,
         "crop_origin_zyx": origin_zyx,
     }
+
+
+def random_flip_3d(
+    image: torch.Tensor,
+    mask: torch.Tensor,
+) -> Tuple[torch.Tensor, torch.Tensor]:
+    """
+    Randomly flip image and mask along each spatial axis (p=0.5 each).
+
+    Args:
+        image: Tensor with shape (C,D,H,W).
+        mask:  Tensor with shape (D,H,W).
+
+    Returns:
+        Flipped (image, mask) pair.
+    """
+    for axis in range(3):
+        if torch.rand(1).item() < 0.5:
+            image = torch.flip(image, dims=[axis + 1])
+            mask = torch.flip(mask, dims=[axis])
+    return image, mask
