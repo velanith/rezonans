@@ -82,8 +82,42 @@ def build_datasets(
     cfg: dict[str, Any],
 ) -> tuple[BraTSDataset, BraTSDataset | None]:
     data_cfg = cfg["data"]
-    root_dir = Path(str(data_cfg["root_dir"]))
+    crop_size = int(data_cfg.get("crop_size", 128))
+    normalize = bool(data_cfg.get("normalize", True))
+    jitter = int(data_cfg.get("jitter", 0))
 
+    # Pre-split layout: train_dir / val_dir
+    if "train_dir" in data_cfg:
+        train_root = Path(str(data_cfg["train_dir"]))
+        train_ids = auto_discover_cases(train_root)
+        print(f"Train: {len(train_ids)} cases from {train_root}")
+
+        val_ds: BraTSDataset | None = None
+        if "val_dir" in data_cfg:
+            val_root = Path(str(data_cfg["val_dir"]))
+            val_ids = auto_discover_cases(val_root)
+            print(f"Val:   {len(val_ids)} cases from {val_root}")
+            val_ds = BraTSDataset(
+                root_dir=val_root,
+                case_ids=val_ids,
+                crop_size=crop_size,
+                jitter=0,
+                normalize=normalize,
+                augment=False,
+            )
+
+        train_ds = BraTSDataset(
+            root_dir=train_root,
+            case_ids=train_ids,
+            crop_size=crop_size,
+            jitter=jitter,
+            normalize=normalize,
+            augment=True,
+        )
+        return train_ds, val_ds
+
+    # Single root_dir with optional val_split (legacy configs)
+    root_dir = Path(str(data_cfg["root_dir"]))
     raw_ids = data_cfg["case_ids"]
     if raw_ids == "auto":
         case_ids = auto_discover_cases(root_dir)
@@ -92,9 +126,6 @@ def build_datasets(
         case_ids = list(raw_ids)
 
     val_split = float(data_cfg.get("val_split", 0.0))
-    crop_size = int(data_cfg.get("crop_size", 128))
-    normalize = bool(data_cfg.get("normalize", True))
-
     if val_split > 0.0:
         seed = int(cfg["run"].get("seed", 42))
         train_ids, val_ids = split_case_ids(case_ids, val_split, seed)
@@ -108,12 +139,12 @@ def build_datasets(
         root_dir=root_dir,
         case_ids=train_ids,
         crop_size=crop_size,
-        jitter=int(data_cfg.get("jitter", 0)),
+        jitter=jitter,
         normalize=normalize,
         augment=True,
     )
 
-    val_ds: BraTSDataset | None = None
+    val_ds = None
     if val_ids:
         val_ds = BraTSDataset(
             root_dir=root_dir,

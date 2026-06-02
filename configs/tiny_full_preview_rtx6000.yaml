@@ -5,9 +5,8 @@ run:
   seed: 42
 
 data:
-  root_dir: /workspace/rezonans/dataset
-  case_ids: auto
-  val_split: 0.2
+  train_dir: /workspace/rezonans/dataset/train_set
+  val_dir: /workspace/rezonans/dataset/val_set
   crop_size: 128
   jitter: 32
   normalize: true
