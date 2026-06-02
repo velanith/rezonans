@@ -10,6 +10,8 @@ data:
   crop_size: 128
   jitter: 32
   normalize: true
+  preload: true
+  cache_dir: /workspace/rezonans/cache
 
 model:
   name: tiny_unet

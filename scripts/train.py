@@ -90,6 +90,8 @@ def build_datasets(
     crop_size = int(data_cfg.get("crop_size", 128))
     normalize = bool(data_cfg.get("normalize", True))
     jitter = int(data_cfg.get("jitter", 0))
+    preload = bool(data_cfg.get("preload", False))
+    cache_dir = data_cfg.get("cache_dir", None)
 
     # Pre-split layout: train_dir (+ optional val_dir or val_split)
     if "train_dir" in data_cfg:
@@ -112,6 +114,8 @@ def build_datasets(
                 jitter=0,
                 normalize=normalize,
                 augment=False,
+                preload=preload,
+                cache_dir=cache_dir,
             )
         else:
             # Split train_dir by val_split
@@ -127,6 +131,8 @@ def build_datasets(
                     jitter=0,
                     normalize=normalize,
                     augment=False,
+                    preload=preload,
+                    cache_dir=cache_dir,
                 )
             else:
                 train_ids = all_ids
@@ -139,6 +145,8 @@ def build_datasets(
             jitter=jitter,
             normalize=normalize,
             augment=True,
+            preload=preload,
+            cache_dir=cache_dir,
         )
         return train_ds, val_ds
 
@@ -168,6 +176,8 @@ def build_datasets(
         jitter=jitter,
         normalize=normalize,
         augment=True,
+        preload=preload,
+        cache_dir=cache_dir,
     )
 
     val_ds = None
@@ -179,6 +189,8 @@ def build_datasets(
             jitter=0,
             normalize=normalize,
             augment=False,
+            preload=preload,
+            cache_dir=cache_dir,
         )
 
     return train_ds, val_ds

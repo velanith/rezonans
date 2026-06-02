@@ -249,6 +249,8 @@ class BraTSDataset(Dataset[dict]):
         jitter: int = 32,
         normalize: bool = True,
         augment: bool = False,
+        preload: bool = False,
+        cache_dir: str | Path | None = None,
     ) -> None:
         self.root_dir = Path(root_dir)
         self.case_ids = case_ids
@@ -256,6 +258,7 @@ class BraTSDataset(Dataset[dict]):
         self.jitter = jitter
         self.normalize = normalize
         self.augment = augment
+        self._cache_dir = Path(cache_dir) if cache_dir else None
 
         if not self.root_dir.exists():
             raise FileNotFoundError(f"Dataset root not found: {self.root_dir}")
@@ -263,27 +266,79 @@ class BraTSDataset(Dataset[dict]):
         if len(self.case_ids) == 0:
             raise ValueError("case_ids cannot be empty")
 
+        # cache: case_id → (image float16, mask int8, affine ndarray)
+        self._cache: dict[str, tuple[torch.Tensor, torch.Tensor, np.ndarray]] = {}
+
+        if preload:
+            self._preload_all()
+
+    def _preload_all(self) -> None:
+        n = len(self.case_ids)
+        hits = 0
+        print(f"Preloading {n} cases...", flush=True)
+
+        if self._cache_dir:
+            self._cache_dir.mkdir(parents=True, exist_ok=True)
+
+        for i, case_id in enumerate(self.case_ids):
+            cache_path = (self._cache_dir / f"{case_id}.pt") if self._cache_dir else None
+
+            if cache_path and cache_path.exists():
+                saved = torch.load(cache_path, weights_only=True)
+                self._cache[case_id] = (
+                    saved["image"],
+                    saved["mask"],
+                    saved["affine"].numpy(),
+                )
+                hits += 1
+            else:
+                case = load_brats_case(self.root_dir / case_id)
+                image = case["image"]
+                if self.normalize:
+                    image = zscore_normalize(image)
+                img_h = image.half()
+                mask_i8 = case["mask"].to(torch.int8)
+                affine = case["affine"]
+                self._cache[case_id] = (img_h, mask_i8, affine)
+
+                if cache_path:
+                    torch.save(
+                        {
+                            "image": img_h,
+                            "mask": mask_i8,
+                            "affine": torch.from_numpy(affine),
+                        },
+                        cache_path,
+                    )
+
+            if (i + 1) % 100 == 0 or (i + 1) == n:
+                print(f"  {i + 1}/{n} ({hits} from cache)", end="\r", flush=True)
+
+        print(f"\nPreload complete. {hits}/{n} from disk cache.", flush=True)
+
     def __len__(self) -> int:
         return len(self.case_ids)
 
     def __getitem__(self, idx: int) -> dict:
         case_id = self.case_ids[idx]
-        case_dir = self.root_dir / case_id
 
-        case = load_brats_case(case_dir)
-
-        image = case["image"]
-        mask = case["mask"]
-        affine = case["affine"]
+        if case_id in self._cache:
+            img_h, mask_i8, affine = self._cache[case_id]
+            image = img_h.float()
+            mask = mask_i8.long()
+        else:
+            case = load_brats_case(self.root_dir / case_id)
+            image = case["image"]
+            mask = case["mask"]
+            affine = case["affine"]
+            if self.normalize:
+                image = zscore_normalize(image)
 
         orig_shape_zyx = (
             image.shape[-3],
             image.shape[-2],
             image.shape[-1],
         )
-
-        if self.normalize:
-            image = zscore_normalize(image)
 
         crop = foreground_crop(
             image=image,
