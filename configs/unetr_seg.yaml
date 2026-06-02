@@ -28,7 +28,7 @@ model:
 training:
   mode: segmentation_only
   device: cuda
-  batch_size: 2
+  batch_size: 8
   num_workers: 4
   max_epochs: 300
   lr: 0.0001
