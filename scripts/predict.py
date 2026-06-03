@@ -70,15 +70,23 @@ def run_predict(args: argparse.Namespace) -> None:
             "et_centroid_mm": pred.et_centroid_mm,
             "wt_centroid_voxel_zyx": pred.wt_centroid_voxel_zyx,
             "et_centroid_voxel_zyx": pred.et_centroid_voxel_zyx,
+            "confidence": {
+                "wt_voxel_count": pred.wt_voxel_count,
+                "mean_wt_confidence": pred.mean_wt_confidence,
+                "review_recommended": pred.review_recommended,
+            },
         }
 
         json_path = case_out / f"{pred.case_id}_pred.json"
         json_path.write_text(json.dumps(result, indent=2))
 
+        review_flag = " ⚠ REVIEW" if pred.review_recommended else ""
         print(
             f"  {pred.case_id} → "
+            f"WT mm: {pred.wt_centroid_mm} | "
             f"ET mm: {pred.et_centroid_mm} | "
-            f"WT mm: {pred.wt_centroid_mm}"
+            f"conf={pred.mean_wt_confidence:.2f} vox={pred.wt_voxel_count}"
+            f"{review_flag}"
         )
 
     print(f"Done. Results saved to {output_dir}")

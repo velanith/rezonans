@@ -21,6 +21,9 @@ class CasePrediction:
     et_centroid_voxel_zyx: list[float]
     wt_centroid_mm: list[float]     # world space (x, y, z) mm
     et_centroid_mm: list[float]
+    wt_voxel_count: int             # predicted WT voxels in crop
+    mean_wt_confidence: float       # mean tumor probability over predicted WT region
+    review_recommended: bool        # True if model confidence is low
 
 
 def _brain_center_zyx(image: torch.Tensor) -> tuple[int, int, int]:
@@ -92,8 +95,19 @@ def predict_case(
         model_out = model(inp)
 
     seg_logits = model_out["seg_logits"]
+    softmax_probs = torch.softmax(seg_logits, dim=1).squeeze(0).cpu()  # (4, D, H, W)
     pred_crop = torch.argmax(seg_logits, dim=1).squeeze(0).cpu()
     seg_full = _reconstruct_seg(pred_crop, origin_zyx, full_shape_zyx, crop_size)
+
+    # Confidence: tumor probability = 1 - P(background)
+    tumor_prob = 1.0 - softmax_probs[0]  # (D, H, W)
+    wt_mask = pred_crop > 0
+    wt_voxel_count = int(wt_mask.sum().item())
+    if wt_voxel_count > 0:
+        mean_wt_confidence = float(tumor_prob[wt_mask].mean().item())
+    else:
+        mean_wt_confidence = 0.0
+    review_recommended = wt_voxel_count < 500 or mean_wt_confidence < 0.5
 
     coord_wt = model_out["coord_wt"].squeeze(0).cpu()
     coord_et = model_out["coord_et"].squeeze(0).cpu()
@@ -114,4 +128,7 @@ def predict_case(
         et_centroid_voxel_zyx=[round(v, 2) for v in et_full_vox],
         wt_centroid_mm=wt_mm,
         et_centroid_mm=et_mm,
+        wt_voxel_count=wt_voxel_count,
+        mean_wt_confidence=round(mean_wt_confidence, 4),
+        review_recommended=review_recommended,
     )
