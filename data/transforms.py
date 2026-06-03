@@ -116,6 +116,7 @@ def crop_or_pad_3d(
 def sample_foreground_crop_center(
     mask: torch.Tensor,
     jitter: int = 0,
+    precomputed_fg_coords: torch.Tensor | None = None,
 ) -> Tuple[int, int, int]:
     """
     Sample a random foreground voxel from a mask, optionally with jitter.
@@ -123,6 +124,8 @@ def sample_foreground_crop_center(
     Args:
         mask: Tensor with shape (D,H,W).
         jitter: Random offset range. If 32, offset is sampled from [-32, 32].
+        precomputed_fg_coords: Precomputed nonzero coords (N,3). If provided,
+            skips torch.nonzero on the full volume.
 
     Returns:
         Crop center as (z,y,x).
@@ -136,7 +139,11 @@ def sample_foreground_crop_center(
         raise ValueError(f"jitter must be non-negative, got {jitter}")
 
     d, h, w = mask.shape
-    fg_coords = torch.nonzero(mask > 0, as_tuple=False)
+    fg_coords = (
+        precomputed_fg_coords.long()
+        if precomputed_fg_coords is not None
+        else torch.nonzero(mask > 0, as_tuple=False)
+    )
 
     if fg_coords.shape[0] > 0:
         idx = int(torch.randint(
@@ -179,6 +186,7 @@ def foreground_crop(
     mask: torch.Tensor,
     crop_size: int = 128,
     jitter: int = 0,
+    fg_coords: torch.Tensor | None = None,
 ) -> ForegroundCropResult:
     """
     Create a foreground-aware crop from image and mask.
@@ -212,7 +220,9 @@ def foreground_crop(
             f"does not match mask shape {tuple(mask.shape)}"
         )
 
-    center_zyx = sample_foreground_crop_center(mask, jitter=jitter)
+    center_zyx = sample_foreground_crop_center(
+        mask, jitter=jitter, precomputed_fg_coords=fg_coords
+    )
 
     full_shape_zyx: Tuple[int, int, int] = (
         image.shape[-3],

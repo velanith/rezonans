@@ -28,6 +28,7 @@ model:
 
 training:
   mode: multitask
+  monitor_metric: val_coord_wt_mae_norm
   pretrained: /workspace/rezonans/checkpoints/unetr_seg/best.pt
   freeze_backbone: true
   device: cuda

@@ -133,10 +133,24 @@ def train(cfg: dict[str, Any]) -> None:
     use_scaler = device.type == "cuda" and precision == "fp16"
     scaler = torch.amp.GradScaler("cuda", enabled=True) if use_scaler else None
 
-    best_score = -1.0
-    best_key = "val_dice_wt" if val_loader is not None else "dice_wt"
+    start_epoch = 0
+    resume_path = training_cfg.get("resume", None)
+    if resume_path:
+        ckpt = torch.load(resume_path, map_location=device, weights_only=True)
+        model.load_state_dict(ckpt["model_state_dict"])
+        optimizer.load_state_dict(ckpt["optimizer_state_dict"])
+        start_epoch = int(ckpt.get("epoch", 0)) + 1
+        for _ in range(start_epoch):
+            scheduler.step()
+        print(f"Resumed from {resume_path} (epoch {start_epoch - 1} → continuing from {start_epoch})")
 
-    for epoch in range(max_epochs):
+    default_key = "val_dice_wt" if val_loader is not None else "dice_wt"
+    best_key = str(training_cfg.get("monitor_metric", default_key))
+    # For MAE metrics lower is better; negate so the same > comparison works.
+    monitor_sign = -1.0 if "mae" in best_key else 1.0
+    best_score = -float("inf")
+
+    for epoch in range(start_epoch, max_epochs):
         model.train()
         t0 = time.perf_counter()
 
@@ -214,9 +228,10 @@ def train(cfg: dict[str, Any]) -> None:
 
         if ckpt_dir is not None:
             all_metrics = {**avg_metrics, **val_metrics}
-            monitor = all_metrics.get(best_key, 0.0)
+            monitor = monitor_sign * all_metrics.get(best_key, 0.0)
             save_checkpoint(model, optimizer, epoch, all_metrics, ckpt_dir / "last.pt")
             if monitor > best_score:
                 best_score = monitor
                 save_checkpoint(model, optimizer, epoch, all_metrics, ckpt_dir / "best.pt")
-                print(f"  → best saved (epoch={epoch}, {best_key}={best_score:.4f})")
+                display = all_metrics.get(best_key, 0.0)
+                print(f"  → best saved (epoch={epoch}, {best_key}={display:.4f})")

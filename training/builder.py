@@ -125,6 +125,12 @@ def build_loaders(
     persistent = num_workers > 0
     pin = device.type == "cuda"
 
+    def worker_init(worker_id: int) -> None:
+        import torch
+        torch.set_num_threads(1)
+
+    init_fn = worker_init if num_workers > 0 else None
+
     train_loader = DataLoader(
         train_ds,
         batch_size=batch_size,
@@ -132,6 +138,8 @@ def build_loaders(
         num_workers=num_workers,
         pin_memory=pin,
         persistent_workers=persistent,
+        prefetch_factor=4 if num_workers > 0 else None,
+        worker_init_fn=init_fn,
     )
 
     val_loader: DataLoader | None = None
@@ -143,6 +151,8 @@ def build_loaders(
             num_workers=num_workers,
             pin_memory=pin,
             persistent_workers=persistent,
+            prefetch_factor=4 if num_workers > 0 else None,
+            worker_init_fn=init_fn,
         )
 
     return train_loader, val_loader

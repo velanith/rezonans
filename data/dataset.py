@@ -268,6 +268,8 @@ class BraTSDataset(Dataset[dict]):
 
         # cache: case_id → (image float16, mask int8, affine ndarray)
         self._cache: dict[str, tuple[torch.Tensor, torch.Tensor, np.ndarray]] = {}
+        # fg_coords cache: case_id → nonzero foreground voxel coords (N,3) int16
+        self._fg_coords: dict[str, torch.Tensor] = {}
 
         if preload:
             self._preload_all()
@@ -285,11 +287,15 @@ class BraTSDataset(Dataset[dict]):
 
             if cache_path and cache_path.exists():
                 saved = torch.load(cache_path, weights_only=True)
+                mask_i8 = saved["mask"]
                 self._cache[case_id] = (
                     saved["image"],
-                    saved["mask"],
+                    mask_i8,
                     saved["affine"].numpy(),
                 )
+                self._fg_coords[case_id] = torch.nonzero(
+                    mask_i8 > 0, as_tuple=False
+                ).to(torch.int16)
                 hits += 1
             else:
                 case = load_brats_case(self.root_dir / case_id)
@@ -300,6 +306,9 @@ class BraTSDataset(Dataset[dict]):
                 mask_i8 = case["mask"].to(torch.int8)
                 affine = case["affine"]
                 self._cache[case_id] = (img_h, mask_i8, affine)
+                self._fg_coords[case_id] = torch.nonzero(
+                    mask_i8 > 0, as_tuple=False
+                ).to(torch.int16)
 
                 if cache_path:
                     torch.save(
@@ -336,6 +345,7 @@ class BraTSDataset(Dataset[dict]):
                 mask=mask_i8,
                 crop_size=self.crop_size,
                 jitter=self.jitter,
+                fg_coords=self._fg_coords.get(case_id),
             )
             image_crop = crop["image"].float()
             mask_crop = crop["mask"].long()
