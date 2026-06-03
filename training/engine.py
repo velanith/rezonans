@@ -139,9 +139,9 @@ def train(cfg: dict[str, Any]) -> None:
         ckpt = torch.load(resume_path, map_location=device, weights_only=True)
         model.load_state_dict(ckpt["model_state_dict"])
         optimizer.load_state_dict(ckpt["optimizer_state_dict"])
+        if scheduler is not None and "scheduler_state_dict" in ckpt:
+            scheduler.load_state_dict(ckpt["scheduler_state_dict"])
         start_epoch = int(ckpt.get("epoch", 0)) + 1
-        for _ in range(start_epoch):
-            scheduler.step()
         print(f"Resumed from {resume_path} (epoch {start_epoch - 1} → continuing from {start_epoch})")
 
     default_key = "val_dice_wt" if val_loader is not None else "dice_wt"
@@ -229,9 +229,9 @@ def train(cfg: dict[str, Any]) -> None:
         if ckpt_dir is not None:
             all_metrics = {**avg_metrics, **val_metrics}
             monitor = monitor_sign * all_metrics.get(best_key, 0.0)
-            save_checkpoint(model, optimizer, epoch, all_metrics, ckpt_dir / "last.pt")
+            save_checkpoint(model, optimizer, epoch, all_metrics, ckpt_dir / "last.pt", scheduler)
             if monitor > best_score:
                 best_score = monitor
-                save_checkpoint(model, optimizer, epoch, all_metrics, ckpt_dir / "best.pt")
+                save_checkpoint(model, optimizer, epoch, all_metrics, ckpt_dir / "best.pt", scheduler)
                 display = all_metrics.get(best_key, 0.0)
                 print(f"  → best saved (epoch={epoch}, {best_key}={display:.4f})")
