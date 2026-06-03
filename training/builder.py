@@ -170,6 +170,7 @@ def build_model(cfg: dict[str, Any]) -> torch.nn.Module:
             mlp_dim=int(model_cfg.get("mlp_dim", 3072)),
             num_heads=int(model_cfg.get("num_heads", 12)),
             dropout_rate=float(model_cfg.get("dropout_rate", 0.0)),
+            use_coord_head=bool(model_cfg.get("use_coord_head", False)),
         )
 
     raise ValueError(f"Unsupported model name: {name}")

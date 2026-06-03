@@ -97,9 +97,26 @@ def train(cfg: dict[str, Any]) -> None:
     train_loader, val_loader = build_loaders(train_ds, val_ds, cfg, device)
 
     model = build_model(cfg).to(device)
+
+    pretrained = training_cfg.get("pretrained", None)
+    if pretrained:
+        ckpt = torch.load(pretrained, map_location=device, weights_only=True)
+        missing, unexpected = model.load_state_dict(ckpt["model_state_dict"], strict=False)
+        print(f"Loaded pretrained: {pretrained} (epoch {ckpt.get('epoch', '?')})")
+        if missing:
+            print(f"  New params (random init): {len(missing)}")
+
+    if bool(training_cfg.get("freeze_backbone", False)):
+        for name, param in model.named_parameters():
+            if not name.startswith("coord_head"):
+                param.requires_grad = False
+        trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
+        total = sum(p.numel() for p in model.parameters())
+        print(f"Backbone frozen. Trainable: {trainable:,} / {total:,} params")
+
     criterion = build_loss(cfg)
     optimizer = torch.optim.AdamW(
-        model.parameters(),
+        filter(lambda p: p.requires_grad, model.parameters()),
         lr=float(training_cfg.get("lr", 1e-4)),
         weight_decay=float(training_cfg.get("weight_decay", 1e-5)),
     )
