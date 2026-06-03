@@ -49,16 +49,31 @@ def eval_case(
     }
 
 
+def load_gt_from_cache(cache_dir: Path, case_id: str) -> dict:
+    """Load GT mask and affine from precomputed .pt cache file."""
+    cache_path = cache_dir / f"{case_id}.pt"
+    saved = torch.load(cache_path, map_location="cpu", weights_only=True)
+    return {
+        "mask": saved["mask"].long(),
+        "affine": saved["affine"].numpy(),
+    }
+
+
 def run_eval(args: argparse.Namespace) -> None:
     cfg = load_config(args.config)
     device = resolve_device(args.device)
     precision = args.precision
     crop_size = int(cfg["data"].get("crop_size", 128))
     data_dir = Path(args.data_dir)
+    cache_dir = Path(args.cache_dir) if args.cache_dir else None
 
     model = load_checkpoint(Path(args.checkpoint), cfg, device)
 
-    case_dirs = sorted(d for d in data_dir.iterdir() if d.is_dir())
+    if args.case_ids:
+        allowed = set(Path(args.case_ids).read_text().splitlines())
+        case_dirs = sorted(d for d in data_dir.iterdir() if d.is_dir() and d.name in allowed)
+    else:
+        case_dirs = sorted(d for d in data_dir.iterdir() if d.is_dir())
     print(f"Evaluating {len(case_dirs)} cases...")
 
     rows: list[dict] = []
@@ -72,21 +87,17 @@ def run_eval(args: argparse.Namespace) -> None:
             print(f"  SKIP {case_id}: {e}")
             continue
 
-        # Load GT for comparison
-        gt_case = load_brats_case(case_dir)
-        gt_seg = gt_case["mask"]  # already remapped 0-3
-        affine = gt_case["affine"]
-        gt_image = zscore_normalize(gt_case["image"])
+        # GT: prefer cache, fall back to raw NIfTI
+        from data.utils import compute_centroid_with_fallback, apply_affine_zyx
 
-        # GT centroids
-        from data.utils import compute_centroid_with_fallback, apply_affine_zyx, denormalize_coord
-        full_shape = (gt_seg.shape[0], gt_seg.shape[1], gt_seg.shape[2])
-
-        from data.transforms import compute_crop_origin
-        from training.predictor import _brain_center_zyx
-        center = _brain_center_zyx(gt_image)
-        origin = compute_crop_origin(center, crop_size, full_shape)
-        origin_t = torch.tensor(origin, dtype=torch.float32)
+        if cache_dir and (cache_dir / f"{case_id}.pt").exists():
+            gt = load_gt_from_cache(cache_dir, case_id)
+            gt_seg = gt["mask"]
+            affine = gt["affine"]
+        else:
+            gt_case = load_brats_case(case_dir)
+            gt_seg = gt_case["mask"]
+            affine = gt_case["affine"]
 
         gt_centroids = compute_centroid_with_fallback(gt_seg)
         gt_wt_vox = gt_centroids["wt_centroid_voxel"]
@@ -151,6 +162,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--checkpoint", required=True, help="Path to best.pt")
     parser.add_argument("--config", required=True, help="Path to the config used for training")
     parser.add_argument("--data_dir", required=True, help="Directory of labeled cases")
+    parser.add_argument("--cache_dir", default=None, help="Precomputed .pt cache directory")
+    parser.add_argument("--case_ids", default=None, help="Text file with one case ID per line to filter")
     parser.add_argument("--output", default=None, help="Optional CSV output path")
     parser.add_argument("--device", default="auto")
     parser.add_argument("--precision", default="fp16", choices=["fp32", "fp16", "bf16"])
