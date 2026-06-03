@@ -324,8 +324,21 @@ class BraTSDataset(Dataset[dict]):
 
         if case_id in self._cache:
             img_h, mask_i8, affine = self._cache[case_id]
-            image = img_h.float()
-            mask = mask_i8.long()
+            # Crop first in compact dtype, convert after — avoids full-volume
+            # float16→float32 and int8→int64 copies on the 240³ volume.
+            orig_shape_zyx = (
+                img_h.shape[-3],
+                img_h.shape[-2],
+                img_h.shape[-1],
+            )
+            crop = foreground_crop(
+                image=img_h,
+                mask=mask_i8,
+                crop_size=self.crop_size,
+                jitter=self.jitter,
+            )
+            image_crop = crop["image"].float()
+            mask_crop = crop["mask"].long()
         else:
             case = load_brats_case(self.root_dir / case_id)
             image = case["image"]
@@ -334,21 +347,20 @@ class BraTSDataset(Dataset[dict]):
             if self.normalize:
                 image = zscore_normalize(image)
 
-        orig_shape_zyx = (
-            image.shape[-3],
-            image.shape[-2],
-            image.shape[-1],
-        )
+            orig_shape_zyx = (
+                image.shape[-3],
+                image.shape[-2],
+                image.shape[-1],
+            )
+            crop = foreground_crop(
+                image=image,
+                mask=mask,
+                crop_size=self.crop_size,
+                jitter=self.jitter,
+            )
+            image_crop = crop["image"]
+            mask_crop = crop["mask"]
 
-        crop = foreground_crop(
-            image=image,
-            mask=mask,
-            crop_size=self.crop_size,
-            jitter=self.jitter,
-        )
-
-        image_crop = crop["image"]
-        mask_crop = crop["mask"]
         crop_origin_zyx = crop["crop_origin_zyx"]
 
         if self.augment:
